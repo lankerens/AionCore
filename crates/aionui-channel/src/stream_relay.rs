@@ -39,6 +39,12 @@ pub trait ChannelSender: Send + Sync {
         message_id: &str,
         message: UnifiedOutgoingMessage,
     ) -> Result<(), ChannelError>;
+
+    /// Start typing indicator for a chat. Default no-op.
+    async fn start_typing(&self, _plugin_id: &str, _chat_id: &str) {}
+
+    /// Stop typing indicator for a chat. Default no-op.
+    async fn stop_typing(&self, _plugin_id: &str, _chat_id: &str) {}
 }
 
 /// Relays agent stream events to an IM platform.
@@ -71,6 +77,9 @@ impl ChannelStreamRelay {
     async fn run_weixin(self, mut rx: broadcast::Receiver<AgentStreamEvent>) {
         let mut text_buffer = String::new();
         let mut has_content = false;
+
+        // Start processing, show "typing" indicator
+        self.sender.start_typing(&self.config.plugin_id, &self.config.chat_id).await;
 
         loop {
             match rx.recv().await {

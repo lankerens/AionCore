@@ -213,6 +213,45 @@ impl WeixinApi {
 
         Ok(())
     }
+
+    /// Fetch bot config including typing_ticket.
+    ///
+    /// `POST /ilink/bot/getconfig`
+    pub async fn get_config(&self) -> Result<String, ChannelError> {
+        let body = serde_json::json!({ "base_info": {} });
+        let resp: serde_json::Value = self
+            .authenticated_post("ilink/bot/getconfig", &body, WEIXIN_API_TIMEOUT)
+            .await
+            .map_err(|e| ChannelError::PlatformApi(format!("getconfig failed: {e}")))?;
+
+        resp.get("typing_ticket")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .ok_or_else(|| ChannelError::PlatformApi("getconfig missing typing_ticket".into()))
+    }
+
+    /// Send or stop typing indicator.
+    ///
+    /// `POST /ilink/bot/sendtyping`
+    /// status: 1 = start, 2 = stop
+    pub async fn send_typing(
+        &self,
+        to_user_id: &str,
+        typing_ticket: &str,
+        status: i32,
+    ) -> Result<(), ChannelError> {
+        let body = serde_json::json!({
+            "to_user_id": to_user_id,
+            "typing_ticket": typing_ticket,
+            "status": status,
+            "base_info": {}
+        });
+        let _resp: serde_json::Value = self
+            .authenticated_post("ilink/bot/sendtyping", &body, WEIXIN_API_TIMEOUT)
+            .await
+            .map_err(|e| ChannelError::PlatformApi(format!("sendtyping failed: {e}")))?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -16,7 +16,7 @@ use crate::types::{
 };
 
 use super::api::WeixinApi;
-use super::types::{ITEM_TYPE_TEXT, ITEM_TYPE_VOICE, WeixinRawItem, WeixinRawMessage};
+use super::types::{ITEM_TYPE_TEXT, ITEM_TYPE_VOICE, TYPING_START, TYPING_STOP, WeixinRawItem, WeixinRawMessage};
 
 /// Default base URL for the iLink Bot API.
 const DEFAULT_BASE_URL: &str = "https://ilinkai.weixin.qq.com";
@@ -34,6 +34,7 @@ pub struct WeixinPlugin {
     poll_handle: Option<JoinHandle<()>>,
     shutdown_tx: Option<watch::Sender<bool>>,
     context_tokens: Arc<DashMap<String, String>>,
+    typing_tickets: Arc<DashMap<String, String>>,  // user_id → typing_ticket
 }
 
 impl Default for WeixinPlugin {
@@ -46,6 +47,7 @@ impl Default for WeixinPlugin {
             poll_handle: None,
             shutdown_tx: None,
             context_tokens: Arc::new(DashMap::new()),
+            typing_tickets: Arc::new(DashMap::new()),
         }
     }
 }
@@ -147,6 +149,7 @@ impl ChannelPlugin for WeixinPlugin {
 
         self.api = None;
         self.context_tokens.clear();
+        self.typing_tickets.clear();
         self.status = PluginStatus::Stopped;
         info!("WeChat plugin stopped");
         Ok(())
@@ -194,6 +197,48 @@ impl ChannelPlugin for WeixinPlugin {
 
     fn last_error(&self) -> Option<&str> {
         self.last_error.as_deref()
+    }
+
+    async fn start_typing(&self, chat_id: &str) {
+        let api = match &self.api {
+            Some(api) => api,
+            None => return,
+        };
+
+        // Fetch typing ticket if not cached
+        if !self.typing_tickets.contains_key(chat_id) {
+            match api.get_config().await {
+                Ok(ticket) => {
+                    self.typing_tickets.insert(chat_id.to_string(), ticket);
+                }
+                Err(e) => {
+                    debug!("Failed to fetch typing ticket: {e}");
+                    return;  // Silent failure, don't affect message processing
+                }
+            }
+        }
+
+        if let Some(ticket) = self.typing_tickets.get(chat_id) {
+            if let Err(e) = api.send_typing(chat_id, &ticket, TYPING_START).await {
+                // Send failure may be expired ticket, clear cache for retry
+                debug!("Failed to send typing start: {e}");
+                self.typing_tickets.remove(chat_id);
+            }
+        }
+    }
+
+    async fn stop_typing(&self, chat_id: &str) {
+        let api = match &self.api {
+            Some(api) => api,
+            None => return,
+        };
+
+        if let Some(ticket) = self.typing_tickets.get(chat_id) {
+            if let Err(e) = api.send_typing(chat_id, &ticket, TYPING_STOP).await {
+                debug!("Failed to send typing stop: {e}");
+                self.typing_tickets.remove(chat_id);
+            }
+        }
     }
 }
 

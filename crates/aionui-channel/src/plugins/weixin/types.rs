@@ -178,6 +178,48 @@ pub(crate) struct SendTextItem {
 // SSE event payloads (frontend-facing — DO NOT CHANGE field names)
 // ---------------------------------------------------------------------------
 
+// --- typing ticket ---
+#[derive(Debug, Serialize)]
+pub(crate) struct GetConfigRequest {
+    pub base_info: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[allow(dead_code)]
+pub(crate) struct GetConfigResponse {
+    #[serde(default)]
+    pub ret: Option<i32>,
+    #[serde(default)]
+    pub errcode: Option<i32>,
+    #[serde(default)]
+    pub errmsg: Option<String>,
+    #[serde(default)]
+    pub typing_ticket: Option<String>,
+}
+
+// --- sendtyping ---
+pub(crate) const TYPING_START: i32 = 1;
+pub(crate) const TYPING_STOP: i32 = 2;
+
+#[derive(Debug, Serialize)]
+pub(crate) struct SendTypingRequest {
+    pub to_user_id: String,
+    pub typing_ticket: String,
+    pub status: i32,
+    pub base_info: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[allow(dead_code)]
+pub(crate) struct SendTypingResponse {
+    #[serde(default)]
+    pub ret: Option<i32>,
+    #[serde(default)]
+    pub errcode: Option<i32>,
+    #[serde(default)]
+    pub errmsg: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SseQrEvent {
