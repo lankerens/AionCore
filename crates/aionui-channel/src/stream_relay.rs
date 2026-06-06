@@ -77,24 +77,21 @@ impl ChannelStreamRelay {
     async fn run_weixin(self, mut rx: broadcast::Receiver<AgentStreamEvent>) {
         let mut text_buffer = String::new();
         let mut has_content = false;
-        let mut typing_started = false;
+
+        // Start typing indicator immediately — covers the entire processing cycle
+        info!(
+            plugin_id = %self.config.plugin_id,
+            chat_id = %self.config.chat_id,
+            "run_weixin: starting typing indicator at relay entry"
+        );
+        self.sender
+            .start_typing(&self.config.plugin_id, &self.config.chat_id)
+            .await;
 
         loop {
             match rx.recv().await {
                 Ok(event) => match ChannelMessageService::process_stream_event(&event) {
                     Some(StreamAction::AppendText(chunk)) => {
-                        // Start typing indicator on first content chunk
-                        if !typing_started {
-                            info!(
-                                plugin_id = %self.config.plugin_id,
-                                chat_id = %self.config.chat_id,
-                                "run_weixin: calling start_typing on first AppendText"
-                            );
-                            self.sender
-                                .start_typing(&self.config.plugin_id, &self.config.chat_id)
-                                .await;
-                            typing_started = true;
-                        }
                         text_buffer.push_str(&chunk);
                         has_content = true;
                     }
@@ -115,7 +112,6 @@ impl ChannelStreamRelay {
                         info!(
                             plugin_id = %self.config.plugin_id,
                             chat_id = %self.config.chat_id,
-                            typing_started,
                             "run_weixin: Finish event, calling stop_typing"
                         );
                         self.sender
@@ -143,7 +139,6 @@ impl ChannelStreamRelay {
                         info!(
                             plugin_id = %self.config.plugin_id,
                             chat_id = %self.config.chat_id,
-                            typing_started,
                             "run_weixin: Error event, calling stop_typing"
                         );
                         self.sender
@@ -176,7 +171,6 @@ impl ChannelStreamRelay {
                     info!(
                         plugin_id = %self.config.plugin_id,
                         chat_id = %self.config.chat_id,
-                        typing_started,
                         "run_weixin: stream Closed, calling stop_typing"
                     );
                     self.sender
