@@ -77,14 +77,19 @@ impl ChannelStreamRelay {
     async fn run_weixin(self, mut rx: broadcast::Receiver<AgentStreamEvent>) {
         let mut text_buffer = String::new();
         let mut has_content = false;
-
-        // Start processing, show "typing" indicator
-        self.sender.start_typing(&self.config.plugin_id, &self.config.chat_id).await;
+        let mut typing_started = false;
 
         loop {
             match rx.recv().await {
                 Ok(event) => match ChannelMessageService::process_stream_event(&event) {
                     Some(StreamAction::AppendText(chunk)) => {
+                        // Start typing indicator on first content chunk
+                        if !typing_started {
+                            self.sender
+                                .start_typing(&self.config.plugin_id, &self.config.chat_id)
+                                .await;
+                            typing_started = true;
+                        }
                         text_buffer.push_str(&chunk);
                         has_content = true;
                     }
@@ -101,6 +106,11 @@ impl ChannelStreamRelay {
                     }
                     Some(StreamAction::ToolCall { .. }) => {}
                     Some(StreamAction::Finish) => {
+                        // Stop typing indicator
+                        self.sender
+                            .stop_typing(&self.config.plugin_id, &self.config.chat_id)
+                            .await;
+
                         if has_content && !text_buffer.trim().is_empty() {
                             let formatted = format_text_for_platform(&text_buffer, self.config.platform);
                             let final_msg = ChannelMessageService::build_final_message(&formatted);
@@ -118,6 +128,11 @@ impl ChannelStreamRelay {
                         break;
                     }
                     Some(StreamAction::Error(msg)) => {
+                        // Stop typing indicator
+                        self.sender
+                            .stop_typing(&self.config.plugin_id, &self.config.chat_id)
+                            .await;
+
                         let error_msg = UnifiedOutgoingMessage {
                             message_type: OutgoingMessageType::Text,
                             text: Some(format!("\u{274c} {msg}")),
@@ -140,6 +155,11 @@ impl ChannelStreamRelay {
                     None => {}
                 },
                 Err(broadcast::error::RecvError::Closed) => {
+                    // Stop typing indicator
+                    self.sender
+                        .stop_typing(&self.config.plugin_id, &self.config.chat_id)
+                        .await;
+
                     if has_content && !text_buffer.trim().is_empty() {
                         let formatted = format_text_for_platform(&text_buffer, self.config.platform);
                         let final_msg = ChannelMessageService::build_final_message(&formatted);

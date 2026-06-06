@@ -212,16 +212,15 @@ impl ChannelPlugin for WeixinPlugin {
                     self.typing_tickets.insert(chat_id.to_string(), ticket);
                 }
                 Err(e) => {
-                    debug!("Failed to fetch typing ticket: {e}");
-                    return;  // Silent failure, don't affect message processing
+                    warn!(chat_id=%chat_id, error=%e, "Failed to fetch typing ticket from WeChat get_config");
+                    return;
                 }
             }
         }
 
         if let Some(ticket) = self.typing_tickets.get(chat_id) {
             if let Err(e) = api.send_typing(chat_id, &ticket, TYPING_START).await {
-                // Send failure may be expired ticket, clear cache for retry
-                debug!("Failed to send typing start: {e}");
+                warn!(chat_id=%chat_id, error=%e, "Failed to send typing start to WeChat");
                 self.typing_tickets.remove(chat_id);
             }
         }
@@ -235,7 +234,7 @@ impl ChannelPlugin for WeixinPlugin {
 
         if let Some(ticket) = self.typing_tickets.get(chat_id) {
             if let Err(e) = api.send_typing(chat_id, &ticket, TYPING_STOP).await {
-                debug!("Failed to send typing stop: {e}");
+                warn!(chat_id=%chat_id, error=%e, "Failed to send typing stop to WeChat");
                 self.typing_tickets.remove(chat_id);
             }
         }
