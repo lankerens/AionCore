@@ -111,8 +111,6 @@ impl ChannelStreamRelay {
                     }
                     Some(StreamAction::ToolCall { .. }) => {}
                     Some(StreamAction::Finish) => {
-                        keep_typing.abort();
-
                         if has_content && !text_buffer.trim().is_empty() {
                             let formatted = format_text_for_platform(&text_buffer, self.config.platform);
                             let final_msg = ChannelMessageService::build_final_message(&formatted);
@@ -121,6 +119,8 @@ impl ChannelStreamRelay {
                                 .send_message(&self.config.plugin_id, &self.config.chat_id, final_msg)
                                 .await;
                         }
+
+                        keep_typing.abort();
 
                         // Stop typing after sending message to avoid gap
                         self.sender
@@ -136,8 +136,6 @@ impl ChannelStreamRelay {
                         break;
                     }
                     Some(StreamAction::Error(msg)) => {
-                        keep_typing.abort();
-
                         let error_msg = UnifiedOutgoingMessage {
                             message_type: OutgoingMessageType::Text,
                             text: Some(format!("\u{274c} {msg}")),
@@ -156,6 +154,8 @@ impl ChannelStreamRelay {
                             .send_message(&self.config.plugin_id, &self.config.chat_id, error_msg)
                             .await;
 
+                        keep_typing.abort();
+
                         self.sender
                             .stop_typing(&self.config.plugin_id, &self.config.chat_id)
                             .await;
@@ -164,8 +164,6 @@ impl ChannelStreamRelay {
                     None => {}
                 },
                 Err(broadcast::error::RecvError::Closed) => {
-                    keep_typing.abort();
-
                     if has_content && !text_buffer.trim().is_empty() {
                         let formatted = format_text_for_platform(&text_buffer, self.config.platform);
                         let final_msg = ChannelMessageService::build_final_message(&formatted);
@@ -174,6 +172,8 @@ impl ChannelStreamRelay {
                             .send_message(&self.config.plugin_id, &self.config.chat_id, final_msg)
                             .await;
                     }
+
+                    keep_typing.abort();
 
                     self.sender
                         .stop_typing(&self.config.plugin_id, &self.config.chat_id)
