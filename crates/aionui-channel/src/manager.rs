@@ -525,6 +525,7 @@ impl crate::stream_relay::ChannelSender for ChannelManager {
     }
 
     async fn start_typing(&self, plugin_id: &str, chat_id: &str) {
+        info!(%plugin_id, %chat_id, "ChannelManager::start_typing called");
         if let Some(plugin) = self.plugins.get(plugin_id) {
             plugin.start_typing(chat_id).await;
         } else {
@@ -533,6 +534,7 @@ impl crate::stream_relay::ChannelSender for ChannelManager {
     }
 
     async fn stop_typing(&self, plugin_id: &str, chat_id: &str) {
+        info!(%plugin_id, %chat_id, "ChannelManager::stop_typing called");
         if let Some(plugin) = self.plugins.get(plugin_id) {
             plugin.stop_typing(chat_id).await;
         } else {

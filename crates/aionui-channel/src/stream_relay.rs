@@ -85,6 +85,11 @@ impl ChannelStreamRelay {
                     Some(StreamAction::AppendText(chunk)) => {
                         // Start typing indicator on first content chunk
                         if !typing_started {
+                            info!(
+                                plugin_id = %self.config.plugin_id,
+                                chat_id = %self.config.chat_id,
+                                "run_weixin: calling start_typing on first AppendText"
+                            );
                             self.sender
                                 .start_typing(&self.config.plugin_id, &self.config.chat_id)
                                 .await;
@@ -107,6 +112,12 @@ impl ChannelStreamRelay {
                     Some(StreamAction::ToolCall { .. }) => {}
                     Some(StreamAction::Finish) => {
                         // Stop typing indicator
+                        info!(
+                            plugin_id = %self.config.plugin_id,
+                            chat_id = %self.config.chat_id,
+                            typing_started,
+                            "run_weixin: Finish event, calling stop_typing"
+                        );
                         self.sender
                             .stop_typing(&self.config.plugin_id, &self.config.chat_id)
                             .await;
@@ -129,6 +140,12 @@ impl ChannelStreamRelay {
                     }
                     Some(StreamAction::Error(msg)) => {
                         // Stop typing indicator
+                        info!(
+                            plugin_id = %self.config.plugin_id,
+                            chat_id = %self.config.chat_id,
+                            typing_started,
+                            "run_weixin: Error event, calling stop_typing"
+                        );
                         self.sender
                             .stop_typing(&self.config.plugin_id, &self.config.chat_id)
                             .await;
@@ -156,6 +173,12 @@ impl ChannelStreamRelay {
                 },
                 Err(broadcast::error::RecvError::Closed) => {
                     // Stop typing indicator
+                    info!(
+                        plugin_id = %self.config.plugin_id,
+                        chat_id = %self.config.chat_id,
+                        typing_started,
+                        "run_weixin: stream Closed, calling stop_typing"
+                    );
                     self.sender
                         .stop_typing(&self.config.plugin_id, &self.config.chat_id)
                         .await;

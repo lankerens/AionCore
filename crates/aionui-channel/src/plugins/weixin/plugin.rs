@@ -237,16 +237,25 @@ impl ChannelPlugin for WeixinPlugin {
     }
 
     async fn stop_typing(&self, chat_id: &str) {
+        info!(chat_id=%chat_id, "WeixinPlugin::stop_typing called");
+
         let api = match &self.api {
             Some(api) => api,
-            None => return,
+            None => {
+                info!("WeixinPlugin::stop_typing: no API available, skipping");
+                return;
+            }
         };
 
         if let Some(ticket) = self.typing_tickets.get(chat_id) {
             if let Err(e) = api.send_typing(chat_id, &ticket, TYPING_STOP).await {
                 warn!(chat_id=%chat_id, error=%e, "Failed to send typing stop to WeChat");
                 self.typing_tickets.remove(chat_id);
+            } else {
+                info!(chat_id=%chat_id, "Typing indicator stopped successfully");
             }
+        } else {
+            info!(chat_id=%chat_id, "WeixinPlugin::stop_typing: no cached typing ticket, skipping");
         }
     }
 }
