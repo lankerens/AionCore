@@ -200,16 +200,23 @@ impl ChannelPlugin for WeixinPlugin {
     }
 
     async fn start_typing(&self, chat_id: &str) {
+        info!(chat_id=%chat_id, "WeixinPlugin::start_typing called");
+
         let api = match &self.api {
             Some(api) => api,
-            None => return,
+            None => {
+                info!("WeixinPlugin::start_typing: no API available, skipping");
+                return;
+            }
         };
 
         // Fetch typing ticket if not cached
         if !self.typing_tickets.contains_key(chat_id) {
             let context_token = self.context_tokens.get(chat_id).map(|v| v.clone());
+            info!(has_context_token=context_token.is_some(), "Fetching typing ticket via get_config");
             match api.get_config(chat_id, context_token.as_deref()).await {
                 Ok(ticket) => {
+                    info!(ticket_len=ticket.len(), "Got typing ticket from get_config");
                     self.typing_tickets.insert(chat_id.to_string(), ticket);
                 }
                 Err(e) => {
@@ -223,6 +230,8 @@ impl ChannelPlugin for WeixinPlugin {
             if let Err(e) = api.send_typing(chat_id, &ticket, TYPING_START).await {
                 warn!(chat_id=%chat_id, error=%e, "Failed to send typing start to WeChat");
                 self.typing_tickets.remove(chat_id);
+            } else {
+                info!(chat_id=%chat_id, "Typing indicator started successfully");
             }
         }
     }
