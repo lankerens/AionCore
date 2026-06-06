@@ -78,15 +78,18 @@ impl ChannelStreamRelay {
         let mut text_buffer = String::new();
         let mut has_content = false;
 
-        // Start typing indicator immediately — covers the entire processing cycle
-        info!(
-            plugin_id = %self.config.plugin_id,
-            chat_id = %self.config.chat_id,
-            "run_weixin: starting typing indicator at relay entry"
-        );
-        self.sender
-            .start_typing(&self.config.plugin_id, &self.config.chat_id)
-            .await;
+        // Start continuous typing indicator — refreshes every 2s like Hermes
+        let keep_typing = {
+            let sender = Arc::clone(&self.sender);
+            let plugin_id = self.config.plugin_id.clone();
+            let chat_id = self.config.chat_id.clone();
+            tokio::spawn(async move {
+                loop {
+                    sender.start_typing(&plugin_id, &chat_id).await;
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
+            })
+        };
 
         loop {
             match rx.recv().await {
@@ -108,15 +111,7 @@ impl ChannelStreamRelay {
                     }
                     Some(StreamAction::ToolCall { .. }) => {}
                     Some(StreamAction::Finish) => {
-                        // Stop typing indicator
-                        info!(
-                            plugin_id = %self.config.plugin_id,
-                            chat_id = %self.config.chat_id,
-                            "run_weixin: Finish event, calling stop_typing"
-                        );
-                        self.sender
-                            .stop_typing(&self.config.plugin_id, &self.config.chat_id)
-                            .await;
+                        keep_typing.abort();
 
                         if has_content && !text_buffer.trim().is_empty() {
                             let formatted = format_text_for_platform(&text_buffer, self.config.platform);
@@ -126,6 +121,12 @@ impl ChannelStreamRelay {
                                 .send_message(&self.config.plugin_id, &self.config.chat_id, final_msg)
                                 .await;
                         }
+
+                        // Stop typing after sending message to avoid gap
+                        self.sender
+                            .stop_typing(&self.config.plugin_id, &self.config.chat_id)
+                            .await;
+
                         info!(
                             plugin_id = %self.config.plugin_id,
                             chat_id = %self.config.chat_id,
@@ -135,15 +136,7 @@ impl ChannelStreamRelay {
                         break;
                     }
                     Some(StreamAction::Error(msg)) => {
-                        // Stop typing indicator
-                        info!(
-                            plugin_id = %self.config.plugin_id,
-                            chat_id = %self.config.chat_id,
-                            "run_weixin: Error event, calling stop_typing"
-                        );
-                        self.sender
-                            .stop_typing(&self.config.plugin_id, &self.config.chat_id)
-                            .await;
+                        keep_typing.abort();
 
                         let error_msg = UnifiedOutgoingMessage {
                             message_type: OutgoingMessageType::Text,
@@ -162,20 +155,16 @@ impl ChannelStreamRelay {
                             .sender
                             .send_message(&self.config.plugin_id, &self.config.chat_id, error_msg)
                             .await;
+
+                        self.sender
+                            .stop_typing(&self.config.plugin_id, &self.config.chat_id)
+                            .await;
                         break;
                     }
                     None => {}
                 },
                 Err(broadcast::error::RecvError::Closed) => {
-                    // Stop typing indicator
-                    info!(
-                        plugin_id = %self.config.plugin_id,
-                        chat_id = %self.config.chat_id,
-                        "run_weixin: stream Closed, calling stop_typing"
-                    );
-                    self.sender
-                        .stop_typing(&self.config.plugin_id, &self.config.chat_id)
-                        .await;
+                    keep_typing.abort();
 
                     if has_content && !text_buffer.trim().is_empty() {
                         let formatted = format_text_for_platform(&text_buffer, self.config.platform);
@@ -185,6 +174,10 @@ impl ChannelStreamRelay {
                             .send_message(&self.config.plugin_id, &self.config.chat_id, final_msg)
                             .await;
                     }
+
+                    self.sender
+                        .stop_typing(&self.config.plugin_id, &self.config.chat_id)
+                        .await;
                     break;
                 }
                 Err(broadcast::error::RecvError::Lagged(n)) => {
