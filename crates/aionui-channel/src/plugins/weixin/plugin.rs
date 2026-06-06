@@ -207,7 +207,8 @@ impl ChannelPlugin for WeixinPlugin {
 
         // Fetch typing ticket if not cached
         if !self.typing_tickets.contains_key(chat_id) {
-            match api.get_config().await {
+            let context_token = self.context_tokens.get(chat_id).map(|v| v.clone());
+            match api.get_config(chat_id, context_token.as_deref()).await {
                 Ok(ticket) => {
                     self.typing_tickets.insert(chat_id.to_string(), ticket);
                 }

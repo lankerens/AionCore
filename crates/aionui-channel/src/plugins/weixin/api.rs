@@ -11,8 +11,9 @@ use crate::constants::{WEIXIN_API_TIMEOUT, WEIXIN_POLL_TIMEOUT};
 use crate::error::ChannelError;
 
 use super::types::{
-    GetUpdatesRequest, GetUpdatesResponse, ILinkResponse, ITEM_TYPE_TEXT, QrCodeData, QrCodeStatusData,
-    SendMessageItem, SendMessageMsg, SendMessageRequest, SendTextItem,
+    GetConfigRequest, GetUpdatesRequest, GetUpdatesResponse, ILinkResponse, ITEM_TYPE_TEXT,
+    QrCodeData, QrCodeStatusData, SendMessageItem, SendMessageMsg, SendMessageRequest,
+    SendTextItem,
 };
 
 /// HTTP client for the WeChat iLink Bot API.
@@ -217,8 +218,16 @@ impl WeixinApi {
     /// Fetch bot config including typing_ticket.
     ///
     /// `POST /ilink/bot/getconfig`
-    pub async fn get_config(&self) -> Result<String, ChannelError> {
-        let body = serde_json::json!({ "base_info": {} });
+    /// Requires `ilink_user_id` and optionally `context_token` (from incoming message).
+    pub async fn get_config(
+        &self,
+        ilink_user_id: &str,
+        context_token: Option<&str>,
+    ) -> Result<String, ChannelError> {
+        let body = GetConfigRequest {
+            ilink_user_id: ilink_user_id.to_string(),
+            context_token: context_token.map(String::from),
+        };
         let resp: serde_json::Value = self
             .authenticated_post("ilink/bot/getconfig", &body, WEIXIN_API_TIMEOUT)
             .await

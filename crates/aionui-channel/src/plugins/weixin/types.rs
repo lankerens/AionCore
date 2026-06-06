@@ -180,8 +180,11 @@ pub(crate) struct SendTextItem {
 
 // --- typing ticket ---
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) struct GetConfigRequest {
-    pub base_info: serde_json::Value,
+    pub ilink_user_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
