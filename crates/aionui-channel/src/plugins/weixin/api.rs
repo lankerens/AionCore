@@ -233,6 +233,19 @@ impl WeixinApi {
             .await
             .map_err(|e| ChannelError::PlatformApi(format!("getconfig failed: {e}")))?;
 
+        // Check for API-level errors
+        let ret = resp.get("ret").and_then(|v| v.as_i64()).unwrap_or(0);
+        if ret != 0 {
+            let errcode = resp.get("errcode").and_then(|v| v.as_i64()).unwrap_or(0);
+            let errmsg = resp
+                .get("errmsg")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown error");
+            return Err(ChannelError::PlatformApi(format!(
+                "getconfig error: ret={ret}, errcode={errcode}, errmsg={errmsg}"
+            )));
+        }
+
         resp.get("typing_ticket")
             .and_then(|v| v.as_str())
             .map(String::from)
@@ -254,10 +267,24 @@ impl WeixinApi {
             typing_ticket: typing_ticket.to_string(),
             status,
         };
-        let _resp: serde_json::Value = self
+        let resp: serde_json::Value = self
             .authenticated_post("ilink/bot/sendtyping", &body, WEIXIN_API_TIMEOUT)
             .await
             .map_err(|e| ChannelError::PlatformApi(format!("sendtyping failed: {e}")))?;
+
+        // Check for API-level errors
+        let ret = resp.get("ret").and_then(|v| v.as_i64()).unwrap_or(0);
+        if ret != 0 {
+            let errcode = resp.get("errcode").and_then(|v| v.as_i64()).unwrap_or(0);
+            let errmsg = resp
+                .get("errmsg")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown error");
+            return Err(ChannelError::PlatformApi(format!(
+                "sendtyping error: ret={ret}, errcode={errcode}, errmsg={errmsg}"
+            )));
+        }
+
         Ok(())
     }
 }

@@ -187,19 +187,6 @@ pub(crate) struct GetConfigRequest {
     pub context_token: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-#[allow(dead_code)]
-pub(crate) struct GetConfigResponse {
-    #[serde(default)]
-    pub ret: Option<i32>,
-    #[serde(default)]
-    pub errcode: Option<i32>,
-    #[serde(default)]
-    pub errmsg: Option<String>,
-    #[serde(default)]
-    pub typing_ticket: Option<String>,
-}
-
 // --- sendtyping ---
 pub(crate) const TYPING_START: i32 = 1;
 pub(crate) const TYPING_STOP: i32 = 2;
@@ -210,17 +197,6 @@ pub(crate) struct SendTypingRequest {
     pub ilink_user_id: String,
     pub typing_ticket: String,
     pub status: i32,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[allow(dead_code)]
-pub(crate) struct SendTypingResponse {
-    #[serde(default)]
-    pub ret: Option<i32>,
-    #[serde(default)]
-    pub errcode: Option<i32>,
-    #[serde(default)]
-    pub errmsg: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
