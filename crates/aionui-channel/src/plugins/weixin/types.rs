@@ -205,11 +205,11 @@ pub(crate) const TYPING_START: i32 = 1;
 pub(crate) const TYPING_STOP: i32 = 2;
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) struct SendTypingRequest {
-    pub to_user_id: String,
+    pub ilink_user_id: String,
     pub typing_ticket: String,
     pub status: i32,
-    pub base_info: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

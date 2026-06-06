@@ -13,7 +13,7 @@ use crate::error::ChannelError;
 use super::types::{
     GetConfigRequest, GetUpdatesRequest, GetUpdatesResponse, ILinkResponse, ITEM_TYPE_TEXT,
     QrCodeData, QrCodeStatusData, SendMessageItem, SendMessageMsg, SendMessageRequest,
-    SendTextItem,
+    SendTextItem, SendTypingRequest,
 };
 
 /// HTTP client for the WeChat iLink Bot API.
@@ -245,16 +245,15 @@ impl WeixinApi {
     /// status: 1 = start, 2 = stop
     pub async fn send_typing(
         &self,
-        to_user_id: &str,
+        ilink_user_id: &str,
         typing_ticket: &str,
         status: i32,
     ) -> Result<(), ChannelError> {
-        let body = serde_json::json!({
-            "to_user_id": to_user_id,
-            "typing_ticket": typing_ticket,
-            "status": status,
-            "base_info": {}
-        });
+        let body = SendTypingRequest {
+            ilink_user_id: ilink_user_id.to_string(),
+            typing_ticket: typing_ticket.to_string(),
+            status,
+        };
         let _resp: serde_json::Value = self
             .authenticated_post("ilink/bot/sendtyping", &body, WEIXIN_API_TIMEOUT)
             .await
